@@ -6,16 +6,17 @@ import PictorriaHTTPServer
 
 stats_requests = 0
 token = ''
+self_port = 0
 
 def init():
     # test folder permission
-    try:
-        t1 = open(config.request_path + 'soft_permission_test.txt','w')
-        t2 = open(config.response_path + 'soft_permission_test.txt','w')
-        t3 = open(config.image_path + 'soft_permission_test.txt','w')
-    except:
-        print "You don't have write permission"
-        return 'error'
+#    try:
+    t1 = open(config.request_path + 'soft_permission_test.txt','w')
+    t2 = open(config.response_path + 'soft_permission_test.txt','w')
+    t3 = open(config.image_path + 'soft_permission_test.txt','w')
+#    except:
+#        print "You don't have write permission"
+#        return 'error'
     os.system('rm '+config.request_path + 'soft_permission_test.txt')
     os.system('rm '+config.response_path + 'soft_permission_test.txt')
     os.system('rm '+config.image_path + 'soft_permission_test.txt')
@@ -58,27 +59,34 @@ def init():
     server_thread.setDaemon(True)
     server_thread.start()
     print "Listening on port#: "+str(PORT)
+    self_port = PORT
+
+    # find self ip
+    global self_ip
     self_ip = ip_echo()
+    if not self_ip:
+        return 'error'
 
 
     # Register Server on Pictorria
     hmac = compute_hmac(self_ip + str(PORT),config.secret_key)
     msg = json.dumps({'command':'register', 'api_key':config.api_key , 'hmac':hmac , 'port':PORT , 'ip':self_ip , 'version':config.version })
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
-    try:
-        response = json.loads(urllib2.urlopen(req).read())
-        if response['status']=='successful':
-            global token
-            token = response['token']
-            global server_time
-            server_time = response['server_time']
-            print ':) Server registered successfully.'
-        else:
-            print ':( Server registration failed.'
-            return 'error'
-    except:
-        print ':( Server registration message not sent.'
+    #try:
+    response = json.loads(urllib2.urlopen(req).read())
+    print response
+    if response['status']=='successful':
+        global token
+        token = response['token']
+        global server_time
+        server_time = response['server_time']
+        print ':) Server registered successfully.'
+    else:
+        print ':( Server registration failed.'
         return 'error'
+    #except:
+    #    print ':( Server registration message not sent.'
+    #    return 'error'
     print response
     check_result_thread = check_result()
     check_result_thread.setDaemon(True)
@@ -86,7 +94,7 @@ def init():
 
     # Verify server
     verified = False
-    msg = json.dumps({'command':'check_me', 'token' : token})
+    msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':PORT , 'ip':self_ip, 'token' : token})
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -239,13 +247,29 @@ class result_sender( threading.Thread ):
 
 # get self IP address
 def ip_echo():
-    msg = json.dumps("{'command':'ip_echo'}")
+    msg = json.dumps({'command':'ip_echo'})
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
-    response = urllib2.urlopen(req).read()
-    return response
+    response = json.loads(urllib2.urlopen(req).read())
+    if response['ip']:
+        print ':) Self IP is : ' + response['ip']
+        return response['ip']
+    else:
+        print ':( Could not find self IP'
+        return False
 
 def compute_hmac(message,secret_key):
     return hmac.new(secret_key, message, hashlib.sha1).hexdigest()
+
+def send_shut_down_signal():
+    msg = json.dumps({'command':'shut_down' , 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
+    req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
+    response = json.loads(urllib2.urlopen(req).read())
+    if response['status']=='successful':
+        print ':) Successfully disconnected from Pictorria.'
+    else:
+        print ':( Error in shutting down, Pictorria might think you are still serving.'
+        return False
+
 
 def main():
     result = init()
@@ -264,6 +288,8 @@ if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, SystemExit):
+        print 'Shutting down the service'
+        send_shut_down_signal()
         global httpd
         httpd.shutdown()
 

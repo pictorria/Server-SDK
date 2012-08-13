@@ -1,10 +1,11 @@
-api_key = 'ad6347335d7bd1cc39ffa435bf7a95fb95037d51'
-secret_key = 'f9a05078084d72d8b8ea58a91f7ead93f1119265'
+api_key = '55a6be5ada73f5b36072083aeb19abaa0898b287'
+secret_key = '625fc9123609dec9580c1430a95a1095928eb5f2'
 service_id = 'object2'
 pictorria = 'http://www.pictorria.com/servers'
-default_port = [9001]
-image_path = '/home/mohsen/pictorria/object/image/'
-request_path = '/home/mohsen/pictorria/object/request/'
-response_path = '/home/mohsen/pictorria/object/response/'
+default_port = [9003]
+image_path = '/home/mohsen/Desktop/test2/image/'
+request_path = '/home/mohsen/Desktop/test2/request/'
+response_path = '/home/mohsen/Desktop/test2/response/'
 remove_images = True
+version = '0'
 ############################
