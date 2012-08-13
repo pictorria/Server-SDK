@@ -10,18 +10,20 @@ self_port = 0
 
 def init():
     # test folder permission
-#    try:
-    t1 = open(config.request_path + 'soft_permission_test.txt','w')
-    t2 = open(config.response_path + 'soft_permission_test.txt','w')
-    t3 = open(config.image_path + 'soft_permission_test.txt','w')
-#    except:
-#        print "You don't have write permission"
-#        return 'error'
+    try:
+        t1 = open(config.request_path + 'soft_permission_test.txt','w')
+        t2 = open(config.response_path + 'soft_permission_test.txt','w')
+        t3 = open(config.image_path + 'soft_permission_test.txt','w')
+    except:
+        print "You don't have write permission"
+        return 'error'
     os.system('rm '+config.request_path + 'soft_permission_test.txt')
     os.system('rm '+config.response_path + 'soft_permission_test.txt')
     os.system('rm '+config.image_path + 'soft_permission_test.txt')
 
     #TODO: check for matlab info file
+
+    # Finding the PORT to run
     global httpd
     if len(config.default_port)>0:
         server_running = False
@@ -72,21 +74,21 @@ def init():
     hmac = compute_hmac(self_ip + str(PORT),config.secret_key)
     msg = json.dumps({'command':'register', 'api_key':config.api_key , 'hmac':hmac , 'port':PORT , 'ip':self_ip , 'version':config.version })
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
-    #try:
-    response = json.loads(urllib2.urlopen(req).read())
-    print response
-    if response['status']=='successful':
-        global token
-        token = response['token']
-        global server_time
-        server_time = response['server_time']
-        print ':) Server registered successfully.'
-    else:
-        print ':( Server registration failed.'
+    try:
+        response = json.loads(urllib2.urlopen(req).read())
+        print response
+        if response['status']=='successful':
+            global token
+            token = response['token']
+            global server_time
+            server_time = response['server_time']
+            print ':) Server registered successfully.'
+        else:
+            print ':( Server registration failed.'
+            return 'error'
+    except:
+        print ':( Server registration message not sent.'
         return 'error'
-    #except:
-    #    print ':( Server registration message not sent.'
-    #    return 'error'
     print response
     check_result_thread = check_result()
     check_result_thread.setDaemon(True)
