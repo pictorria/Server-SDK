@@ -7,6 +7,7 @@ import PictorriaHTTPServer
 stats_requests = 0
 token = ''
 self_port = 0
+self_ip = ''
 
 def init():
     # test folder permission
@@ -72,7 +73,7 @@ def init():
 
     # Register Server on Pictorria
     hmac = compute_hmac(self_ip + str(PORT),config.secret_key)
-    msg = json.dumps({'command':'register', 'api_key':config.api_key , 'hmac':hmac , 'port':PORT , 'ip':self_ip , 'version':config.version })
+    msg = json.dumps({'command':'register', 'api_key':config.api_key , 'hmac':hmac , 'port':self_port , 'ip':self_ip , 'version':config.version })
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -96,7 +97,7 @@ def init():
 
     # Verify server
     verified = False
-    msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':PORT , 'ip':self_ip, 'token' : token})
+    msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -116,23 +117,53 @@ def init():
 
     return 'success'
 
+def verify_connection():
+    verified = False
+    msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
+    req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
+    try:
+        response = json.loads(urllib2.urlopen(req).read())
+        if response['status'] == 'successful':
+            verified = True
+            print ':) Connection verified successfully.'
+    except:
+        response = ''
+        pass
+    if not verified:
+        if 'error_msg' in response:
+            print ':( Connection verification failed.'
+            print response['error_msg']
+        else:
+            print ':( Connection verification failed.'
+        return 'error'
+
+    return verified
+
+
 class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
     def do_POST(self):
         msg = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        # TODO: check msg format, and authentication
-        response = 'ok'
-        if msg['command'] == 'alive?':
-            response = 'yes I am'
-        self.my_send_response(response)
+        if msg['command']:
+            command = msg['command']
+        else:
+            self.send_error_msg(':( Command not specified')
 
-        if msg['command'] == 'process':
+        if command=='check_status':
+        # Check Status Request Handler, Verifies the connection and respond back
+            if verify_connection():
+                response = json.dumps({'status':'successful'})
+            else:
+                response = json.dumps({'status':'failed'})
+            self.send_json_response(response)
+
+        elif command=='process':
+        # Process Request Handler
             url =  msg['url']
             req_id = msg['image_id'] + '-' + msg['service_id']
             # Request filename
             req_filename = str(req_id) + '_' + str(time.time())
             # Request image file location
             tmp_image_location = config.image_path + 'temp_image_' + req_filename
-
             try:
                 # Download image
                 urllib.urlretrieve(url, tmp_image_location)
@@ -141,11 +172,12 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
                 os.system('rm ' + tmp_image_location)
                 tmp_response_location = config.response_path + 'temp_result_' + req_filename
                 f = open(tmp_response_location,'w')
-                f.write('{"status":"error","error_message":"could not download image", "req_id":"%s"}'%req_id)
+                f.write('{"status":"failed","error_message":"could not download image", "req_id":"%s"}'%req_id)
                 f.flush()
                 f.close()
                 response_location = config.response_path + 'result_' + req_filename
                 os.system('mv '+ tmp_response_location + ' ' + response_location)
+                self.send_error_msg('could not download image')
                 return
 
             # Move image in the location for processing
@@ -161,12 +193,47 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
             f.write(msg_json)
             f.flush()
             f.close()
-        elif msg['command'] == 'error':
-            print "we have problem test your service please stop this process recheck and submit"
+            response = json.dumps({'status':'successful'})
+            self.send_json_response(response)
 
-    def do_GET(self):
-        response = 'yes I am'
-        self.my_send_response(response)
+        elif command=='message':
+        # Process message from Pictorria
+            command_msg = msg['command']
+            if command_msg=='shut_down':
+            #TODO: stop this application!
+                pass
+            elif command_msg=='print':
+                print msg['message']
+            elif command_msg=='re-register':
+            #TODO: stop threds and register again
+                init()
+
+            response = json.dumps({'status':'successful'})
+            self.send_json_response(response)
+        else:
+            self.send_error_msg(':( Command not recognized')
+
+    def send_error_msg(self,msg):
+        print 'ERROR : ' + msg
+        response = json.dumps({'status':'failed','error_msg':msg})
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.send_header("Content-Length", str(len(response)))
+        self.send_header("Last-Modified", self.date_time_string(time.time()))
+        self.end_headers()
+        self.wfile.write(response)
+
+#    def do_GET(self):
+#        response = 'yes I am'
+#        self.my_send_response(response)
+
+    def send_json_response(self,response):
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.send_header("Content-Length", str(len(response)))
+        self.send_header("Last-Modified", self.date_time_string(time.time()))
+        self.end_headers()
+        self.wfile.write(response)
 
     def my_send_response(self,response):
         self.send_response(200)
@@ -175,6 +242,7 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
         self.send_header("Last-Modified", self.date_time_string(time.time()))
         self.end_headers()
         self.wfile.write(response)
+
 
 class check_result ( threading.Thread ):
     def __init__(self):
@@ -223,18 +291,18 @@ class result_sender( threading.Thread ):
         msg ={}
         msg['result'] = result
         msg['image_id'] = t[0]
-        msg['service_id'] = t[1]
         msg['command'] = 'result'
-        msg['api_key'] = config.api_key
+        msg['token'] = token
         msg = json.dumps(msg)
         print msg
         req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
-
         try:
-            server_response_json = urllib2.urlopen(req).read()
-            server_response = json.loads(server_response_json)
-            print server_response_json
-            success = True
+            server_response = json.loads(urllib2.urlopen(req).read())
+            if server_response['status']=='successful':
+                success = True
+            else:
+                success = False
+                print server_response['error_msg']
         except:
             success = False
             print 'Could not submit result to Pictorria server'
