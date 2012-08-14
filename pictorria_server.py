@@ -328,7 +328,7 @@ def ip_echo():
         return False
 
 def compute_hmac(message,secret_key):
-    return hmac.new(secret_key, message, hashlib.sha1).hexdigest()
+    return hmac.new(str(secret_key), str(message), hashlib.sha1).hexdigest()
 
 def send_shut_down_signal():
     msg = json.dumps({'command':'shut_down' , 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
