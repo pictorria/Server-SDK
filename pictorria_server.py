@@ -98,6 +98,7 @@ def init():
     # Verify server
     verified = False
     msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
+    print msg
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -120,6 +121,7 @@ def init():
 def verify_connection():
     verified = False
     msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
+    print msg
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -149,11 +151,13 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
             self.send_error_msg(':( Command not specified')
 
         if command=='check_status':
+            print msg
         # Check Status Request Handler, Verifies the connection and respond back
             if verify_connection():
                 response = json.dumps({'status':'successful'})
             else:
                 response = json.dumps({'status':'failed'})
+            print response
             self.send_json_response(response)
 
         elif command=='process':
@@ -223,9 +227,10 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response)
 
-#    def do_GET(self):
-#        response = 'yes I am'
-#        self.my_send_response(response)
+    def do_GET(self):
+        print 'get request came'
+        response = 'yes I am'
+        self.my_send_response(response)
 
     def send_json_response(self,response):
         self.send_response(200)
