@@ -62,13 +62,14 @@ def init():
     server_thread.setDaemon(True)
     server_thread.start()
     print "Listening on port#: "+str(PORT)
-    self_port = PORT
 
     # find self ip
     global self_ip
     self_ip = ip_echo()
     if not self_ip:
         return 'error'
+    global self_port
+    self_port = PORT
 
 
     # Register Server on Pictorria
@@ -77,7 +78,6 @@ def init():
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
-        print response
         if response['status']=='successful':
             global token
             token = response['token']
@@ -90,7 +90,7 @@ def init():
     except:
         print ':( Server registration message not sent.'
         return 'error'
-    print response
+
     check_result_thread = check_result()
     check_result_thread.setDaemon(True)
     check_result_thread.start()
@@ -98,7 +98,6 @@ def init():
     # Verify server
     verified = False
     msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
-    print msg
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -112,6 +111,7 @@ def init():
         if 'error_msg' in response:
             print ':( Connection verification failed.'
             print response['error_msg']
+#            print response
         else:
             print ':( Connection verification failed.'
         return 'error'
@@ -121,7 +121,7 @@ def init():
 def verify_connection():
     verified = False
     msg = json.dumps({'command':'check_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
-    print msg
+#    print msg
     req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
     try:
         response = json.loads(urllib2.urlopen(req).read())
@@ -145,19 +145,14 @@ def verify_connection():
 class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
     def do_POST(self):
         msg = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+#        print 'POST request came '
         if msg['command']:
             command = msg['command']
         else:
             self.send_error_msg(':( Command not specified')
 
         if command=='check_status':
-            print msg
-        # Check Status Request Handler, Verifies the connection and respond back
-            if verify_connection():
-                response = json.dumps({'status':'successful'})
-            else:
-                response = json.dumps({'status':'failed'})
-            print response
+            response = json.dumps({'status':'successful'})
             self.send_json_response(response)
 
         elif command=='process':
@@ -227,10 +222,10 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response)
 
-    def do_GET(self):
-        print 'get request came'
-        response = 'yes I am'
-        self.my_send_response(response)
+#    def do_GET(self):
+#        print 'get request came'
+#        response = 'yes I am'
+#        self.my_send_response(response)
 
     def send_json_response(self,response):
         self.send_response(200)
