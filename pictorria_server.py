@@ -158,7 +158,7 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
         elif command=='process':
         # Process Request Handler
             url =  msg['url']
-            req_id = msg['image_id'] + '-' + msg['service_id']
+            req_id = msg['image_id'] + '-' + msg['api_key']
             # Request filename
             req_filename = str(req_id) + '_' + str(time.time())
             # Request image file location
@@ -192,6 +192,11 @@ class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
             f.write(msg_json)
             f.flush()
             f.close()
+            f = open(config.response_path +'result_'+ req_filename ,'w')
+            f.write(msg_json)
+            f.flush()
+            f.close()
+
             response = json.dumps({'status':'successful'})
             self.send_json_response(response)
 
@@ -288,7 +293,7 @@ class result_sender( threading.Thread ):
         result = json.loads(f.read())
         f.close()
         t = self.req_id.split('_')[0].split('-')
-        msg ={}
+        msg = {'api_key':config.api_key , 'port':self_port , 'ip':self_ip}
         msg['result'] = result
         msg['image_id'] = t[0]
         msg['command'] = 'result'
@@ -297,7 +302,8 @@ class result_sender( threading.Thread ):
         print msg
         req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
         try:
-            server_response = json.loads(urllib2.urlopen(req).read())
+            a = urllib2.urlopen(req).read()
+            server_response = json.loads(a)
             if server_response['status']=='successful':
                 success = True
             else:
@@ -306,7 +312,6 @@ class result_sender( threading.Thread ):
         except:
             success = False
             print 'Could not submit result to Pictorria server'
-
         # remove the result file if it has been submitted, else move it back for resubmission
         if success:
             os.system('rm ' + self.sending_response_location)
