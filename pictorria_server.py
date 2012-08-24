@@ -9,6 +9,7 @@ token = ''
 self_port = 0
 self_ip = ''
 
+
 def init():
     # test folder permission
     try:
@@ -115,7 +116,7 @@ def init():
         else:
             print ':( Connection verification failed.'
         return 'error'
-
+    send_feed_me()
     return 'success'
 
 def verify_connection():
@@ -141,6 +142,14 @@ def verify_connection():
 
     return verified
 
+def send_feed_me():
+    global self_port, self_ip, token
+    msg = json.dumps({'command':'feed_me', 'api_key':config.api_key , 'port':self_port , 'ip':self_ip, 'token' : token})
+    req = urllib2.Request(config.pictorria,msg,{'content-type':'application/json'})
+    try:
+        urllib2.urlopen(req)
+    except:
+        pass
 
 class req_handler(PictorriaHTTPServer.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -307,6 +316,7 @@ class result_sender( threading.Thread ):
             if server_response['status']=='successful':
                 success = True
             else:
+                print 'hamedfosh'
                 success = False
                 print server_response['error_msg']
         except:
@@ -317,7 +327,7 @@ class result_sender( threading.Thread ):
             os.system('rm ' + self.sending_response_location)
             print t[0] + ':' + t[1] + ':' + 'Successfully submitted to the server'
         else:
-            os.system('mv ' + self.sending_response_location + ' ' + self.response_location)
+            #os.system('mv ' + self.sending_response_location + ' ' + self.response_location)
             pass
 
 # get self IP address
